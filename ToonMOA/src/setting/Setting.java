@@ -200,7 +200,6 @@ public class Setting {
 	    	System.out.println(ktoonTitle.get(i) + "\t" + ktoonHref.get(i) + "\t" + ktoonImage.get(i) + "\t" + ktoonAuthor.get(i) + "\t" + ktoonNumber.get(i) + "\t" + ktoonLink.get(i));
 	    }
 		
-		
 		/*String driver = "com.mysql.jdbc.Driver";
 		String url = "jdbc:mysql://localhost:3306?useSSL=false&useUnicode=true&characterEncoding=UTF-8";
 		String user = "root";
