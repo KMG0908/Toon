@@ -22,8 +22,11 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class Setting {
 	@SuppressWarnings("resource")
@@ -145,16 +148,16 @@ public class Setting {
 	
 	public static void parsing() {
 		String naverUrl = "https://comic.naver.com/webtoon/weekday.nhn"; //파싱할 홈페이지의 URL주소
-		//String daumUrl = "http://webtoon.daum.net/";
+		String daumUrl = "http://webtoon.daum.net/";
 		String foxtoonUrl = "https://www.foxtoon.com/comic";
 		String ktoonUrl = "https://www.myktoon.com/web/webtoon/works_list.kt";
 	    String naverWebtoon = "https://comic.naver.com";
-	    //String daumWebtoon = "http://webtoon.daum.net";
+	    String daumWebtoon = "http://webtoon.daum.net";
 	    String foxtoonWebtoon = "https://www.foxtoon.com";
 	    String ktoonWebtoon = "https://v2.myktoon.com/web/works/viewer.kt?timesseq=";
 	    
-	    /*String daumDay[] = {"#day=mon&tab=day", "#day=tue&tab=day", "#day=wed&tab=day", "#day=thu&tab=day",
-	    		"#day=fri&tab=day", "#day=sat&tab=day", "#day=sun&tab=day"};*/
+	    String daumDay[] = {"#day=mon&tab=day", "#day=tue&tab=day", "#day=wed&tab=day", "#day=thu&tab=day",
+	    		"#day=fri&tab=day", "#day=sat&tab=day", "#day=sun&tab=day"};
 
 	    ArrayList<String> naverHref = new ArrayList<>();
 	    ArrayList<String> naverTitle = new ArrayList<>();
@@ -163,12 +166,12 @@ public class Setting {
 	    ArrayList<String> naverNumber = new ArrayList<>();	// 최신화 제목
 	    ArrayList<String> naverLink = new ArrayList<>();	// 최신화 링크
 	    
-	    /*ArrayList<String> daumHref = new ArrayList<>();
+	    ArrayList<String> daumHref = new ArrayList<>();
 	    ArrayList<String> daumTitle = new ArrayList<>();
 	    ArrayList<String> daumImage = new ArrayList<>();
 	    ArrayList<String> daumAuthor = new ArrayList<>();
 	    ArrayList<String> daumNumber = new ArrayList<>();
-	    ArrayList<String> daumLink = new ArrayList<>();*/
+	    ArrayList<String> daumLink = new ArrayList<>();
 	    
 	    ArrayList<String> foxtoonHref = new ArrayList<>();
 	    ArrayList<String> foxtoonTitle = new ArrayList<>();
@@ -203,35 +206,47 @@ public class Setting {
                     naverLink.add(naverWebtoon + document.select("td.title a").first().attr("href").trim());
                 }
             }
+            
+            WebDriver driver = new ChromeDriver();
+            WebDriverWait wait; 
 			
-			/*for(int i=0; i<daumDay.length; i++) {
-				driver.get(daumUrl + daumDay[i]);
-				doc = Jsoup.parse(driver.getPageSource());
-				//doc = Jsoup.connect(daumUrl + daumDay[i]).get();
-				
-				titles = doc.select("ul.list_wt li a.link_wt");
+            for(int i=0; i<daumDay.length; i++) {
+    			driver.get(daumUrl + daumDay[i]);
+    			
+    			wait = new WebDriverWait(driver, 60);
+    			wait.until(ExpectedConditions.elementToBeClickable(By.className("link_wt")));
+    			doc = Jsoup.parse(driver.getPageSource());
+    			
+    			titles = doc.select("ul.list_wt li a.link_wt");
+    			
+    			System.out.println(daumUrl + daumDay[i]);
+    			System.out.println(titles);
+    			System.out.println();
+    			for(Element e : titles){
+    				if(!daumTitle.contains(e.getElementsByTag("img").attr("alt").trim())) {
+    					daumHref.add(e.attr("href").trim());
+    					daumTitle.add(e.getElementsByTag("img").attr("alt").trim());
+    					daumImage.add(e.getElementsByTag("img").attr("src").trim());
+    					daumAuthor.add(e.parent().getElementsByClass("txt_info").text().replaceAll(e.parent().getElementsByClass("screen_out").text(), "").trim());
+    					
+    					driver.get(daumWebtoon + e.attr("href").trim());
+    					
+    					wait = new WebDriverWait(driver, 60);
+    					wait.until(ExpectedConditions.elementToBeClickable(By.className("list_update")));
 
-				for(Element e : titles){
-					if(!daumTitle.contains(e.getElementsByClass("tit_wt").text().trim())) {
-						daumHref.add(e.attr("href").trim());
-						daumTitle.add(e.getElementsByClass("tit_wt").text().trim());
-						daumImage.add(e.getElementsByTag("img").attr("src").trim());
-						daumAuthor.add(e.parent().getElementsByClass("txt_info").text().trim());
-						
-						// 아래는 ajax 인듯... 안된다....
-						driver.get(daumWebtoon + e.attr("href").trim());
-						Document document = Jsoup.parse(driver.getPageSource());
-						System.out.println(document.select("ul.clear_g"));
-						daumNumber.add(document.select("li.item_preview a.link_wt strong.tit_wt").first().text().trim());
-						daumLink.add(document.select("li.item_preview a.link_wt").attr("href").trim());
-						
-						System.out.println(document.select("li.item_preview a.link_wt strong.tit_wt").first().text().trim());
-						System.out.println(document.select("li.item_preview a.link_wt").attr("href").trim());
-						break;
-					}
-				}
-				break;
-			}*/
+    					Document document = Jsoup.parse(driver.getPageSource());
+    					
+    					for(Element e1 : document.select("ul.list_update li")) {
+    						if(!e1.hasClass("item_preview")) {
+    							daumNumber.add(e1.select("a.link_wt strong.tit_wt").text().trim());
+    							daumLink.add(e1.select("a.link_wt").attr("href").trim());
+    							break;
+    						}
+    					}
+    					
+    				}
+    			}
+    		}
             
             doc = Jsoup.connect(foxtoonUrl).get();
             
@@ -264,31 +279,26 @@ public class Setting {
 			
 			titles = doc.select("li.tm7 a");
 			
-			WebDriver driver = new ChromeDriver();
-			
 			for(Element e : titles) {
 				if(!ktoonTitle.contains(e.getElementsByTag("strong").text().trim())) {
 					ktoonHref.add(e.attr("href").trim().replaceAll("javascript:fncAdultCert\\('", "").replaceAll("'\\)", ""));
 					ktoonTitle.add(e.getElementsByTag("strong").text().trim());
 					ktoonImage.add(e.getElementsByTag("img").attr("src").trim());
 					
-					try {
-						driver.get(e.attr("href").trim());
-						Document document = Jsoup.parse(driver.getPageSource()); 
-						ktoonAuthor.add(document.select("a.authorInfoBtn").text().trim());
-						
-						for(Element e1 : document.select("ul.toon_lst li a.item")) {
-							if(e1.attr("data-free").equals("Y")) {
-								ktoonNumber.add(e1.select("div.info h4 span").text().trim());
-								ktoonLink.add(ktoonWebtoon + e1.parent().attr("id").trim());
-							}
-						}			
-					}
-					catch(Exception e1) {
-						ktoonAuthor.add("");
-						ktoonNumber.add("");
-						ktoonLink.add("");
-					}
+					driver.get(e.attr("href").trim().replaceAll("javascript:fncAdultCert\\('", "").replaceAll("'\\)", ""));
+					wait = new WebDriverWait(driver, 30);
+					wait.until(ExpectedConditions.elementToBeClickable(By.className("authorInfoBtn")));
+					
+					Document document = Jsoup.parse(driver.getPageSource()); 
+					ktoonAuthor.add(document.select("a.authorInfoBtn").text().trim());
+					
+					for(Element e1 : document.select("ul.toon_lst li a.item")) {
+						if(e1.attr("data-free").equals("Y")) {
+							ktoonNumber.add(e1.select("div.info h4 span").text().trim());
+							ktoonLink.add(ktoonWebtoon + e1.parent().attr("id").trim());
+							break;
+						}
+					}	
 				}
 			}
 			driver.close();
@@ -304,6 +314,10 @@ public class Setting {
 			
 			for(int i=0; i<naverHref.size(); i++) {
 		    	bw.write("\r\n" + (num++) + "\t" + "네이버" + "\t" + naverTitle.get(i) + "\t" + naverAuthor.get(i) + "\t" + naverImage.get(i) + "\t" + naverHref.get(i) + "\t" + naverNumber.get(i) + "\t" + naverLink.get(i));
+		    }
+			
+			for(int i=0; i<daumHref.size(); i++) {
+		    	bw.write("\r\n" + (num++) + "\t" + "다음" + "\t" + daumTitle.get(i) + "\t" + daumAuthor.get(i) + "\t" + daumImage.get(i) + "\t" + daumHref.get(i) + "\t" + daumNumber.get(i) + "\t" + daumLink.get(i));
 		    }
 			
 			for(int i=0; i<foxtoonHref.size(); i++) {
