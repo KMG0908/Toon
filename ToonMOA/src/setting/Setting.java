@@ -1,14 +1,15 @@
 package setting;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
-import java.lang.annotation.Annotation;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -17,19 +18,132 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
-import javax.xml.ws.WebServiceClient;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.parser.Parser;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
 
 public class Setting {
+	@SuppressWarnings("resource")
 	public static void main(String[] args) {
+		File file = new File("txt/webtoon.txt");
+		if(!file.exists()) parsing();
+		
+		String driver = "com.mysql.jdbc.Driver";
+		String url = "jdbc:mysql://localhost:3306?useSSL=false&useUnicode=true&characterEncoding=UTF-8";
+		String user = "root";
+		String password = "1234";
+		
+		Connection conn = null;
+		Statement stmt = null;
+		ResultSet rs = null;
+		
+		try {
+			Class.forName(driver);
+			conn = DriverManager.getConnection(url, user, password);
+			
+			stmt = conn.createStatement();
+			rs = stmt.executeQuery("show databases like 'webtoon'");
+			if(rs.next()) {
+				stmt.executeUpdate("drop database webtoon");
+			}
+			
+			stmt.executeUpdate("create database webtoon");
+			stmt.executeUpdate("use webtoon");
+			
+			StringBuffer createTable = new StringBuffer();
+			createTable.append("create table list ");
+			createTable.append("(id int not null primary key auto_increment, ");
+			createTable.append("site varchar(10) not null, ");			// 웹툰 사이트 종류
+			createTable.append("title varchar(30) not null, ");			// 웹툰 제목
+			createTable.append("author varchar(30) not null, ");		// 웹툰 작가
+			createTable.append("image varchar(200) not null, ");		// 웹툰 이미지 주소
+			createTable.append("link varchar(100) not null, ");			// 웹툰 링크
+			createTable.append("newest_title varchar(30) not null, ");	// 웹툰 최신화 제목
+			createTable.append("newest_link varchar(100) not null)");	// 웹툰 최신화 링크
+			
+			stmt.executeUpdate(createTable.toString());
+			
+			stmt.executeUpdate("alter table list convert to charset utf8");
+			
+			System.out.println("테이블 생성 완료");
+			
+			StringBuffer insertData = new StringBuffer();
+			insertData.append("insert into list values(?, ?, ?, ?, ?, ?, ?, ?) ");
+			PreparedStatement pstmt = conn.prepareStatement(insertData.toString());
+			
+			try {
+				BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "utf-8"));
+				
+				String line = "";
+				int flag = 0;
+				
+				while((line = br.readLine()) != null) {
+					if(flag == 0) {
+						flag++;
+						continue;
+					}
+					
+					String strArray[] = line.split("\t");
+					
+					for(int j=0; j<strArray.length; j++){
+						System.out.print(strArray[j] + "\t");
+					}
+					System.out.println();
+					
+					pstmt.setInt(1, Integer.parseInt(strArray[0]));
+					pstmt.setString(2, strArray[1]);
+					pstmt.setString(3, strArray[2]);
+					pstmt.setString(4, strArray[3]);
+					pstmt.setString(5, strArray[4]);
+					pstmt.setString(6, strArray[5]);
+					pstmt.setString(7, strArray[6]);
+					pstmt.setString(8, strArray[7]);
+					
+					pstmt.executeUpdate();
+				}
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			stmt.executeQuery("use mysql");
+			
+			rs = stmt.executeQuery("select host, user, authentication_string from user where user = 'webtoonUser'");
+			while(rs.next()) {
+				stmt.executeUpdate("drop user 'webtoonUser'@'localhost'");
+			}
+			stmt.executeUpdate("create user 'webtoonUser'@'localhost' identified by '1234'");
+			stmt.executeUpdate("grant select on webtoon.* to 'webtoonUser'@'localhost'");
+			
+			System.out.println("권한 생성 완료");
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			try {
+				conn.close();
+				if(stmt != null) stmt.close();
+				if(rs != null) rs.close();
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	public static void parsing() {
 		String naverUrl = "https://comic.naver.com/webtoon/weekday.nhn"; //파싱할 홈페이지의 URL주소
 		//String daumUrl = "http://webtoon.daum.net/";
 		String foxtoonUrl = "https://www.foxtoon.com/comic";
@@ -183,131 +297,27 @@ public class Setting {
 			e.printStackTrace();
 		}
 	    
-	    System.out.println("naver");
-	    for(int i=0; i<naverHref.size(); i++) {
-	    	System.out.println(naverTitle.get(i) + "\t" + naverHref.get(i) + "\t" + naverImage.get(i) + "\t" + naverAuthor.get(i) + "\t" + naverNumber.get(i) + "\t" + naverLink.get(i));
-	    }
-	    
-	    System.out.println();
-	    System.out.println("foxtoon");
-	    for(int i=0; i<foxtoonHref.size(); i++) {
-	    	System.out.println(foxtoonTitle.get(i) + "\t" + foxtoonHref.get(i) + "\t" + foxtoonImage.get(i) + "\t" + foxtoonAuthor.get(i) + "\t" + foxtoonNumber.get(i) + "\t" + foxtoonLink.get(i));
-	    }
-	    
-	    System.out.println();
-	    System.out.println("ktoon");
-	    for(int i=0; i<ktoonHref.size(); i++) {
-	    	System.out.println(ktoonTitle.get(i) + "\t" + ktoonHref.get(i) + "\t" + ktoonImage.get(i) + "\t" + ktoonAuthor.get(i) + "\t" + ktoonNumber.get(i) + "\t" + ktoonLink.get(i));
-	    }
-		
-		/*String driver = "com.mysql.jdbc.Driver";
-		String url = "jdbc:mysql://localhost:3306?useSSL=false&useUnicode=true&characterEncoding=UTF-8";
-		String user = "root";
-		String password = "1234";
-		
-		Connection conn = null;
-		Statement stmt = null;
-		ResultSet rs = null;
-		
-		try {
-			Class.forName(driver);
-			conn = DriverManager.getConnection(url, user, password);
+	    try {
+	    	int num = 1;
+	    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("txt/webtoon.txt"), "UTF-8"));
+			bw.write("번호\t사이트 종류\t제목\t작가\t이미지\t링크\t최신화 제목\t최신화 링크");
 			
-			stmt = conn.createStatement();
-			rs = stmt.executeQuery("show databases like 'webtoon'");
-			if(rs.next()) {
-				stmt.executeUpdate("drop database webtoon");
-			}
+			for(int i=0; i<naverHref.size(); i++) {
+		    	bw.write("\r\n" + (num++) + "\t" + "네이버" + "\t" + naverTitle.get(i) + "\t" + naverAuthor.get(i) + "\t" + naverImage.get(i) + "\t" + naverHref.get(i) + "\t" + naverNumber.get(i) + "\t" + naverLink.get(i));
+		    }
 			
-			stmt.executeUpdate("create database webtoon");
-			stmt.executeUpdate("use webtoon");
+			for(int i=0; i<foxtoonHref.size(); i++) {
+		    	bw.write("\r\n" + (num++) + "\t" + "폭스툰" + "\t" + foxtoonTitle.get(i) + "\t" + foxtoonAuthor.get(i) + "\t" + foxtoonImage.get(i) + "\t" + foxtoonHref.get(i) + "\t" + foxtoonNumber.get(i) + "\t" + foxtoonLink.get(i));
+		    }
 			
-			StringBuffer createTable = new StringBuffer();
-			createTable.append("create table user ");
-			createTable.append("(id int not null primary key, ");
-			createTable.append("passwd varchar(30) not null, ");
-			createTable.append("name varchar(20) not null, ");
-			createTable.append("isStudent tinyint not null, ");
-			createTable.append("isConnect tinyint not null) ");
+			for(int i=0; i<ktoonHref.size(); i++) {
+		    	bw.write("\r\n" + (num++) + "\t" + "케이툰" + "\t" + ktoonTitle.get(i) + "\t" + ktoonAuthor.get(i) + "\t" + ktoonImage.get(i) + "\t" + ktoonHref.get(i) + "\t" + ktoonNumber.get(i) + "\t" + ktoonLink.get(i));
+		    }
 			
-			stmt.executeUpdate(createTable.toString());
-			
-			stmt.executeUpdate("alter table user convert to charset utf8");
-			
-			System.out.println("table create completed");
-			
-			StringBuffer insertData = new StringBuffer();
-			insertData.append("insert into user values(?, ?, ?, ?, ?) ");
-			PreparedStatement pstmt = conn.prepareStatement(insertData.toString());
-			
-			File file = new File("src/txt/user.txt");
-			
-			try {
-				BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "utf-8"));
-				
-				String line = "";
-				int flag = 0;
-				
-				while((line = br.readLine()) != null) {
-					if(flag == 0) {
-						flag++;
-						continue;
-					}
-					
-					String strArray[] = line.split("\t");
-					
-					for(int j=0; j<strArray.length; j++){
-						System.out.print(strArray[j] + "\t");
-					}
-					System.out.println();
-					
-					pstmt.setInt(1, Integer.parseInt(strArray[0]));
-					pstmt.setString(2, strArray[1]);
-					pstmt.setString(3, strArray[2]);
-					pstmt.setInt(4, Integer.parseInt(strArray[3]));
-					pstmt.setInt(5, Integer.parseInt(strArray[4]));
-					
-					pstmt.executeUpdate();
-				}
-				
-				br.close();
-				pstmt.close();
-			} catch (UnsupportedEncodingException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-			stmt.executeQuery("use mysql");
-			
-			rs = stmt.executeQuery("select host, user, authentication_string from user where user = 'softUser'");
-			while(rs.next()) {
-				stmt.executeUpdate("drop user 'softUser'@'localhost'");
-			}
-			stmt.executeUpdate("create user 'softUser'@'localhost' identified by '1234'");
-			stmt.executeUpdate("grant select, update on softDB.* to 'softUser'@'localhost'");
-			
-			System.out.println("권한 생성 완료");
-		} catch (ClassNotFoundException e) {
+			bw.close();
+		} catch (IOException e1) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {
-			try {
-				conn.close();
-				if(stmt != null) stmt.close();
-				if(rs != null) rs.close();
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}*/
+			e1.printStackTrace();
+		}
 	}
 }
