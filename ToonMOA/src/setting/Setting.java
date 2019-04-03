@@ -122,12 +122,22 @@ public class Setting {
 			
 			rs = stmt.executeQuery("select host, user, authentication_string from user where user = 'webtoonUser'");
 			while(rs.next()) {
-				stmt.executeUpdate("drop user 'webtoonUser'@'localhost'");
+				try {
+					stmt.executeUpdate("drop user 'webtoonUser'@'%'");
+				} catch(SQLException e) {
+					stmt.executeUpdate("drop user 'webtoonUser'@'localhost'");
+				}
 			}
 			stmt.executeUpdate("create user 'webtoonUser'@'localhost' identified by '1234'");
 			stmt.executeUpdate("grant select on webtoon.* to 'webtoonUser'@'localhost'");
 			
 			System.out.println("권한 생성 완료");
+			
+			stmt.executeUpdate("INSERT INTO mysql.user (host,user,authentication_string,ssl_cipher, x509_issuer, x509_subject) VALUES ('%','webtoonUser',password('1234'),'','','')");
+			stmt.executeUpdate("GRANT ALL PRIVILEGES ON *.* TO 'webtoonUser'@'%'");
+			stmt.executeUpdate("FLUSH PRIVILEGES");
+			
+			System.out.println("외부 접속 허용");
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
